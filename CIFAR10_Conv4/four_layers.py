@@ -67,6 +67,10 @@ class CIFAR10Network:
   def get_optimizer(self, loss, learning_rate=0.001):
     return tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss)
 
+  def calc_acc(self, predictions, y, sess):
+    correct_pred = tf.equal(tf.argmax(predictions, 1), tf.argmax(y, 1))
+    return tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
   def build(self, X, y, dropout=1, batch_size=32):
    
     conv1 = self.conv2d(X, self.weights['wc1'], self.biases['bc1'])
@@ -87,7 +91,7 @@ class CIFAR10Network:
     fc1 = tf.nn.relu(fc1)
     fc1 = tf.nn.dropout(fc1, dropout)
     # print 'FC1', fc1.get_shape()
-    out = tf.add(tf.matmul(fc1, self.weights['wout']), self.biases['bout'])
+    out = tf.nn.relu(tf.add(tf.matmul(fc1, self.weights['wout']), self.biases['bout']))
     # print 'OUT', out.get_shape()
     return out
 
@@ -103,7 +107,7 @@ if __name__ == '__main__':
   keep_prob = tf.placeholder(tf.float32)          
   cifar_network = CIFAR10Network(num_classes)
   init = tf.global_variables_initializer()
-  
+
   # ================================ TRAINING ======================================================
   with tf.Session() as sess:
     sess.run(init)
@@ -129,7 +133,7 @@ if __name__ == '__main__':
           X_batch, y_batch = X[step*batch_size:(step+1)*batch_size], y[step*batch_size:(step+1)*batch_size]
           predictions = cifar_network.build(X_batch, y_batch, keep_prob)
           loss = cifar_network.get_loss(predictions, y_batch)
-          accuracy = tf.reduce_mean(tf.cast(predictions == y_batch, tf.float32))
+          accuracy = cifar_network.calc_acc(predictions, y_batch, sess)
           optimizer = cifar_network.get_optimizer(loss)
           l, acc, _ = sess.run([loss, accuracy, optimizer], feed_dict={X_:X_batch, y_:y_batch, keep_prob:.5})
           loss_history.append(l)
